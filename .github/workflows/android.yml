@@ -1,6 +1,5 @@
 name: Build Android APK
 
-# Déclenche le workflow à chaque push sur la branche principale (main ou master)
 on:
   push:
     branches: [ "main", "master" ]
@@ -12,29 +11,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Récupérer le code du dépôt
+    # 1. Récupérer le fichier zip et le dossier du dépôt
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. Configurer le JDK (Java Development Kit) requis pour Android
+    # 2. Décompresser automatiquement votre fichier niswo.zip
+    - name: Unzip project files
+      run: |
+        unzip -o niswo.zip
+        echo "Contenu du répertoire après extraction :"
+        ls -la
+
+    # 3. Configurer l'environnement Java
     - name: set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
 
-    # 3. Donner les permissions d'exécution au script Gradle
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-
-    # 4. Compiler l'APK en mode Debug (ou Release)
+    # 4. Donner les permissions et compiler l'APK
     - name: Build with Gradle
-      run: ./gradlew assembleDebug
+      run: |
+        chmod +x ./gradlew
+        ./gradlew assembleDebug
 
-    # 5. Sauvegarder l'APK généré pour pouvoir le télécharger
+    # 5. Sauvegarder l'APK généré pour le télécharger
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
+        path: |
+          **/build/outputs/apk/debug/*.apk
