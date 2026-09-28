@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK from Web Design
 
 on:
   push:
@@ -11,42 +11,63 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Récupérer le fichier zip du dépôt
+    # 1. Récupérer le code du dépôt (le fichier ZIP)
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. Décompresser le fichier niswo.zip
-    - name: Unzip project files
-      run: |
-        unzip -o niswo.zip
-        echo "=== Structure des dossiers après extraction ==="
-        ls -R
+    # 2. Configurer Node.js (nécessaire pour transformer le code web en app mobile)
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
 
-    # 3. Configurer l'environnement Java requis
-    - name: set up JDK 17
+    # 3. Configurer Java pour la compilation Android
+    - name: Set up JDK 17
       uses: actions/setup-java@v5
       with:
         java-version: '17'
         distribution: 'temurin'
 
-    # 4. Trouver le fichier gradlew, lui donner les permissions et compiler
-    - name: Build with Gradle
+    # 4. Décompresser vos fichiers de design
+    - name: Unzip project files
       run: |
-        GRADLEW_PATH=$(find . -name "gradlew" -print -quit)
-        if [ -z "$GRADLEW_PATH" ]; then
-          echo "Erreur : Le fichier gradlew est introuvable dans le ZIP !"
-          exit 1
+        unzip -o niswo.zip
+        # Trouver où sont les fichiers extraits (au cas où ils sont dans un sous-dossier)
+        EXTRACTED_DIR=$(find . -name "index.html" -exec dirname {} \; | head -n 1)
+        if [ -z "$EXTRACTED_DIR" ]; then
+          EXTRACTED_DIR="."
         fi
-        GRADLEW_DIR=$(dirname "$GRADLEW_PATH")
-        echo "Fichier gradlew trouvé dans : $GRADLEW_DIR"
-        cd "$GRADLEW_DIR"
+        echo "DIR_PATH=$EXTRACTED_DIR" >> $GITHUB_ENV
+
+    # 5. Transformer le code de design en projet Android avec Capacitor
+    - name: Initialize Mobile Platform
+      run: |
+        cd ${{ env.DIR_PATH }}
+        # Créer un package.json minimal si Claude ne l'a pas fait
+        if [ ! -f "package.json" ]; then
+          npm init -y
+        fi
+        # Installer Capacitor
+        npm install @capacitor/core @capacitor/cli
+        # Initialiser le projet mobile (Nom: NiswoApp, ID: com.niswo.app)
+        npx cap init NiswoApp com.niswo.app --web-dir=.
+        # Installer et ajouter la plateforme Android
+        npm install @capacitor/android
+        npx cap add android
+        # Copier le code web dans le dossier Android
+        npx cap sync
+
+    # 6. Compiler l'APK Android final
+    - name: Build APK with Gradle
+      run: |
+        cd ${{ env.DIR_PATH }}/android
         chmod +x ./gradlew
         ./gradlew assembleDebug
 
-    # 5. Sauvegarder tous les APK générés pour le téléchargement
+    # 7. Rendre l'APK disponible au téléchargement
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
         path: |
-          **/build/outputs/apk/debug/*.apk
+          **/android/app/build/outputs/apk/debug/*.apk
