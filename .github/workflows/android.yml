@@ -15,7 +15,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. Configurer Node.js (nécessaire pour transformer le code web en app mobile)
+    # 2. Configurer Node.js
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
@@ -28,39 +28,53 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # 4. Décompresser vos fichiers de design
+    # 4. Décompresser vos fichiers de design et préparer l'arborescence
     - name: Unzip project files
       run: |
         unzip -o niswo.zip
-        # Trouver où sont les fichiers extraits (au cas où ils sont dans un sous-dossier)
+        
+        # Trouver où se trouve le fichier index.html extrait
         EXTRACTED_DIR=$(find . -name "index.html" -exec dirname {} \; | head -n 1)
         if [ -z "$EXTRACTED_DIR" ]; then
           EXTRACTED_DIR="."
         fi
-        echo "DIR_PATH=$EXTRACTED_DIR" >> $GITHUB_ENV
+        
+        # Créer un dossier de travail propre pour éviter les conflits Capacitor
+        mkdir -p build_workspace/www
+        
+        # Copier tout le contenu du design dans le sous-dossier www
+        cp -r $EXTRACTED_DIR/* build_workspace/www/ 2>/dev/null || true
+        
+        # Supprimer le zip du dossier de travail pour éviter les boucles de copie
+        rm -f build_workspace/www/niswo.zip
+        
+        echo "WORKSPACE_PATH=$GITHUB_WORKSPACE/build_workspace" >> $GITHUB_ENV
 
     # 5. Transformer le code de design en projet Android avec Capacitor
     - name: Initialize Mobile Platform
       run: |
-        cd ${{ env.DIR_PATH }}
-        # Créer un package.json minimal si Claude ne l'a pas fait
-        if [ ! -f "package.json" ]; then
-          npm init -y
-        fi
+        cd ${{ env.WORKSPACE_PATH }}
+        
+        # Créer un package.json standard
+        npm init -y
+        
         # Installer Capacitor
         npm install @capacitor/core @capacitor/cli
-        # Initialiser le projet mobile (Nom: NiswoApp, ID: com.niswo.app)
-        npx cap init NiswoApp com.niswo.app --web-dir=.
+        
+        # Initialiser le projet avec le dossier webDir pointant explicitement sur "www"
+        npx cap init NiswoApp com.niswo.app --web-dir=www
+        
         # Installer et ajouter la plateforme Android
         npm install @capacitor/android
         npx cap add android
-        # Copier le code web dans le dossier Android
+        
+        # Synchroniser les fichiers du dossier www vers le projet Android natif
         npx cap sync
 
     # 6. Compiler l'APK Android final
     - name: Build APK with Gradle
       run: |
-        cd ${{ env.DIR_PATH }}/android
+        cd ${{ env.WORKSPACE_PATH }}/android
         chmod +x ./gradlew
         ./gradlew assembleDebug
 
