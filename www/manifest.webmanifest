@@ -1,0 +1,11 @@
+{
+  "name": "Suivi diététique simplifié",
+  "short_name": "Suivi Diet",
+  "lang": "fr",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B0B0B",
+  "theme_color": "#0B0B0B",
+  "icons": [{"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}]
+}

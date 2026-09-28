@@ -1,0 +1,22 @@
+{
+  "appId": "fr.simplyon.suividiet",
+  "appName": "Suivi Diet",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#0B0B0B"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "backgroundColor": "#0B0B0B",
+      "launchShowDuration": 800
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0B0B0B",
+      "overlaysWebView": true
+    }
+  }
+}
