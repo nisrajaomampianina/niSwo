@@ -54,29 +54,53 @@ jobs:
         cd ${{ env.WORKSPACE_PATH }}
         npm init -y
         npm install @capacitor/core @capacitor/cli
-        npx cap init NiswoApp com.niswo.app --web-dir=www
+        
+        # CHANGER LE NOM ICI : Remplacez "Mon Super Nom" par le nom de votre choix
+        npx cap init "Discipline by niS" com.niswo.app --web-dir=www
+        
         npm install @capacitor/android
         npx cap add android
+
+    # 6. Générer automatiquement toutes les tailles d'icônes Android
+    - name: Generate App Icons and Splash Screens
+      run: |
+        cd ${{ env.WORKSPACE_PATH }}
+        
+        # Vérifier si l'utilisateur a fourni les images nécessaires
+        if [ -f "www/icon.png" ]; then
+          cp www/icon.png ./icon.png
+          cp www/splash.png ./splash.png 2>/dev/null || cp www/icon.png ./splash.png
+          
+          # Installer l'outil de génération d'icônes officiel de Capacitor
+          npm install @capacitor/assets --save-dev
+          
+          # Générer toutes les icônes requises pour Android
+          npx capacitor-assets generate --android
+          echo "Icônes personnalisées générées avec succès !"
+        else
+          echo "Attention : icon.png introuvable dans le ZIP. Utilisation des icônes par défaut."
+        fi
+
+    # 7. Synchroniser les ressources générées vers le projet natif
+    - name: Sync Capacitor Projects
+      run: |
+        cd ${{ env.WORKSPACE_PATH }}
         npx cap sync
 
-    # 6. Résoudre le conflit de doublons Kotlin (Duplicate class)
+    # 8. Résoudre le conflit de doublons Kotlin (Duplicate class)
     - name: Fix Kotlin Duplicate Classes
       run: |
         BUILD_GRADLE_PATH="${{ env.WORKSPACE_PATH }}/android/app/build.gradle"
-        
-        # Injection d'une règle d'exclusion pour empêcher les doublons de kotlin-stdlib
         sed -i '/dependencies {/a \    modules {\n        module("org.jetbrains.kotlin:kotlin-stdlib-jdk7") { replacedBy("org.jetbrains.kotlin:kotlin-stdlib") }\n        module("org.jetbrains.kotlin:kotlin-stdlib-jdk8") { replacedBy("org.jetbrains.kotlin:kotlin-stdlib") }\n    }' $BUILD_GRADLE_PATH
-        
-        echo "=== Fichier build.gradle modifié avec succès ==="
 
-    # 7. Compiler l'APK Android final
+    # 9. Compiler l'APK Android final
     - name: Build APK with Gradle
       run: |
         cd ${{ env.WORKSPACE_PATH }}/android
         chmod +x ./gradlew
         ./gradlew assembleDebug
 
-    # 8. Rendre l'APK disponible au téléchargement
+    # 10. Rendre l'APK disponible au téléchargement
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
