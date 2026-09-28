@@ -21,7 +21,7 @@ jobs:
       with:
         node-version: '20'
 
-    # 3. Configurer Java 21 (Nécessaire pour les versions récentes du build Android)
+    # 3. Configurer Java 21
     - name: Set up JDK 21
       uses: actions/setup-java@v5
       with:
@@ -39,13 +39,11 @@ jobs:
           EXTRACTED_DIR="."
         fi
         
-        # Créer un dossier de travail propre pour éviter les conflits Capacitor
+        # Créer un dossier de travail propre
         mkdir -p build_workspace/www
         
         # Copier tout le contenu du design dans le sous-dossier www
         cp -r $EXTRACTED_DIR/* build_workspace/www/ 2>/dev/null || true
-        
-        # Supprimer le zip du dossier de travail pour éviter les boucles de copie
         rm -f build_workspace/www/niswo.zip
         
         echo "WORKSPACE_PATH=$GITHUB_WORKSPACE/build_workspace" >> $GITHUB_ENV
@@ -54,31 +52,31 @@ jobs:
     - name: Initialize Mobile Platform
       run: |
         cd ${{ env.WORKSPACE_PATH }}
-        
-        # Créer un package.json standard
         npm init -y
-        
-        # Installer Capacitor
         npm install @capacitor/core @capacitor/cli
-        
-        # Initialiser le projet avec le dossier webDir pointant explicitement sur "www"
         npx cap init NiswoApp com.niswo.app --web-dir=www
-        
-        # Installer et ajouter la plateforme Android
         npm install @capacitor/android
         npx cap add android
-        
-        # Synchroniser les fichiers du dossier www vers le projet Android natif
         npx cap sync
 
-    # 6. Compiler l'APK Android final
+    # 6. Résoudre le conflit de doublons Kotlin (Duplicate class)
+    - name: Fix Kotlin Duplicate Classes
+      run: |
+        BUILD_GRADLE_PATH="${{ env.WORKSPACE_PATH }}/android/app/build.gradle"
+        
+        # Injection d'une règle d'exclusion pour empêcher les doublons de kotlin-stdlib
+        sed -i '/dependencies {/a \    modules {\n        module("org.jetbrains.kotlin:kotlin-stdlib-jdk7") { replacedBy("org.jetbrains.kotlin:kotlin-stdlib") }\n        module("org.jetbrains.kotlin:kotlin-stdlib-jdk8") { replacedBy("org.jetbrains.kotlin:kotlin-stdlib") }\n    }' $BUILD_GRADLE_PATH
+        
+        echo "=== Fichier build.gradle modifié avec succès ==="
+
+    # 7. Compiler l'APK Android final
     - name: Build APK with Gradle
       run: |
         cd ${{ env.WORKSPACE_PATH }}/android
         chmod +x ./gradlew
         ./gradlew assembleDebug
 
-    # 7. Rendre l'APK disponible au téléchargement
+    # 8. Rendre l'APK disponible au téléchargement
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
